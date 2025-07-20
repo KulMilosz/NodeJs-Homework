@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Car Shop</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header>
@@ -17,6 +17,7 @@
         <li id="nav-logout" style="display:none;"><a href="#logout">Wyloguj</a></li>
         <li id="nav-login" style="display:none;"><a href="#login">Zaloguj</a></li>
         <li id="nav-register" style="display:none;"><a href="#register">Zarejestruj</a></li>
+        <li id="nav-users" style="display:none;"><a href="#admin-users">Użytkownicy</a></li>
       </ul>
     </nav>
     <div id="user-info"></div>
@@ -63,6 +64,7 @@
         <input type="password" id="newPassword" placeholder="Nowe Password">
         <button type="submit">Aktualizuj profil</button>
       </form>
+      <button id="deleteAccountBtn" style="background:#c00;color:#fff;">Usuń konto</button>
     </section>
 
     <!-- Widok listy samochodów -->
@@ -91,8 +93,14 @@
       <h2>Wylogowano</h2>
       <p>Zostałeś wylogowany.</p>
     </section>
+
+    <!-- Widok listy użytkowników -->
+    <section id="admin-users-view" class="view" style="display:none;">
+      <h2>Użytkownicy</h2>
+      <div id="users-list"></div>
+    </section>
   </main>
 
-  <script src="main.js"></script>
+  <script src="/static/main.js"></script>
 </body>
 </html>

@@ -1,11 +1,44 @@
 import { createServer } from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { handleRoute } from './routes.js';
+import dotenv from "dotenv";
 
-const PORT = 3000;
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PORT = process.env.PORT || 3000;
 const server = createServer(async (req, res) => {
-  res.end(JSON.stringify({ status: 'ok'}))
-
-  // 1. Obsługa endpointów
-  // 2. Proste serwowanie plików statycznych z katalogu frontend (np. pod ścieżką /static/)
+  if (req.url === '/' || req.url === '/index.html') {
+    const filePath = path.join(__dirname, '..', 'frontend', 'index.html');
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.statusCode = 404;
+        res.end('Not found');
+      } else {
+        res.setHeader('Content-Type', 'text/html');
+        res.end(data);
+      }
+    });
+    return;
+  }
+  if (req.url?.startsWith('/static/')) {
+    const filePath = path.join(__dirname, '..', 'frontend', req.url.replace('/static/', ''));
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.statusCode = 404;
+        res.end('Not found');
+      } else {
+        res.end(data);
+      }
+    });
+    return;
+  }
+ 
+  await handleRoute(req, res);
 });
 
 server.listen(PORT, () => {

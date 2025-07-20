@@ -38,9 +38,10 @@ function renderNav() {
     document.getElementById('nav-logout').style.display = 'inline';
     document.getElementById('nav-login').style.display = 'none';
     document.getElementById('nav-register').style.display = 'none';
-
     document.getElementById('user-info').innerText =
       `Zalogowany jako: ${currentUser.username} | Rola: ${currentUser.role} | Saldo: ${currentUser.balance}`;
+    // Pokaż link do panelu admina tylko adminowi
+    document.getElementById('nav-users').style.display = currentUser.role === 'admin' ? 'inline' : 'none';
   } else {
     document.getElementById('nav-profile').style.display = 'none';
     document.getElementById('nav-cars').style.display = 'none';
@@ -48,7 +49,7 @@ function renderNav() {
     document.getElementById('nav-logout').style.display = 'none';
     document.getElementById('nav-login').style.display = 'inline';
     document.getElementById('nav-register').style.display = 'inline';
-
+    document.getElementById('nav-users').style.display = 'none';
     document.getElementById('user-info').innerText = 'Nie jesteś zalogowany';
   }
 }
@@ -134,14 +135,118 @@ async function loadCars() {
                      <strong>ID:</strong> ${car.id} |
                      <strong>Model:</strong> ${car.model} |
                      <strong>Cena:</strong> ${car.price} |
-                     <strong>Właściciel:</strong> ${car.ownerId}
-                   </div>`;
+                     <strong>Właściciel:</strong> ${car.ownerId}`;
+          if (
+            currentUser &&
+            (currentUser.role === 'admin' || car.ownerId === currentUser.id)
+          ) {
+            html += ` <button class="edit-car-btn" data-id="${car.id}">Edytuj</button>`;
+            html += ` <button class="delete-car-btn" data-id="${car.id}">Usuń</button>`;
+          }
+          html += `</div>`;
         });
       }
       document.getElementById('cars-list').innerHTML = html;
+
+      // Dodaj event listenery do przycisków edycji
+      document.querySelectorAll('.edit-car-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const carId = btn.getAttribute('data-id');
+          const newModel = prompt('Nowy model samochodu:');
+          if (!newModel) return;
+          const newPrice = prompt('Nowa cena samochodu:');
+          if (!newPrice) return;
+          const res = await fetch(`http://localhost:3000/cars/${carId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: newModel, price: parseFloat(newPrice) })
+          });
+          const data = await res.json();
+          if (res.status === 200) {
+            showMessage('Samochód zaktualizowany', 'success');
+            loadCars();
+          } else {
+            showMessage(data.error || 'Błąd edycji samochodu', 'error');
+          }
+        });
+      });
+      // Dodaj event listenery do przycisków usuwania
+      document.querySelectorAll('.delete-car-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const carId = btn.getAttribute('data-id');
+          if (!confirm('Na pewno usunąć ten samochód?')) return;
+          const res = await fetch(`http://localhost:3000/cars/${carId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (res.status === 200) {
+            showMessage('Samochód usunięty', 'success');
+            loadCars();
+          } else {
+            showMessage(data.error || 'Błąd usuwania samochodu', 'error');
+          }
+        });
+      });
     }
   } catch (err) {
     showMessage('Błąd przy pobieraniu samochodów', 'error');
+  }
+}
+
+async function loadUsers() {
+  try {
+    const res = await fetch('http://localhost:3000/users');
+    if (res.status === 200) {
+      const users = await res.json();
+      let html = '';
+      users.forEach(user => {
+        html += `<div class="user-item">
+          <strong>ID:</strong> ${user.id} |
+          <strong>Username:</strong> ${user.username} |
+          <strong>Rola:</strong> ${user.role} |
+          <button class="edit-user-btn" data-id="${user.id}">Edytuj</button>
+          <button class="delete-user-btn" data-id="${user.id}" style="background:#c00;color:#fff;">Usuń</button>
+        </div>`;
+      });
+      document.getElementById('users-list').innerHTML = html;
+      // Obsługa edycji usera
+      document.querySelectorAll('.edit-user-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.getAttribute('data-id');
+          const newUsername = prompt('Nowy username:');
+          if (!newUsername) return;
+          const newPassword = prompt('Nowe hasło:');
+          if (!newPassword) return;
+          const res = await fetch(`http://localhost:3000/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: newUsername, password: newPassword })
+          });
+          const data = await res.json();
+          if (res.status === 200) {
+            showMessage('Użytkownik zaktualizowany', 'success');
+            loadUsers();
+          } else {
+            showMessage(data.error || 'Błąd edycji użytkownika', 'error');
+          }
+        });
+      });
+      // Obsługa usuwania usera
+      document.querySelectorAll('.delete-user-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.getAttribute('data-id');
+          if (!confirm('Na pewno usunąć tego użytkownika?')) return;
+          const res = await fetch(`http://localhost:3000/users/${userId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (res.status === 200) {
+            showMessage('Użytkownik usunięty', 'success');
+            loadUsers();
+          } else {
+            showMessage(data.error || 'Błąd usuwania użytkownika', 'error');
+          }
+        });
+      });
+    }
+  } catch (err) {
+    showMessage('Błąd przy pobieraniu użytkowników', 'error');
   }
 }
 
@@ -261,6 +366,23 @@ function setupEventListeners() {
       }
     });
   }
+
+  const deleteBtn = document.getElementById('deleteAccountBtn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm('Na pewno usunąć konto?')) return;
+      const res = await fetch(`http://localhost:3000/users/${currentUser.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.status === 200) {
+        showMessage('Konto usunięte', 'success');
+        currentUser = null;
+        window.location.hash = '#home';
+        renderNav();
+      } else {
+        showMessage(data.error || 'Błąd usuwania konta', 'error');
+      }
+    });
+  }
 }
 
 /**
@@ -287,6 +409,9 @@ function route() {
   if (viewId === 'cars-view') {
     loadCars();
   }
+  if (viewId === 'admin-users-view') {
+    loadUsers();
+  }
 }
 
 /**
@@ -304,4 +429,26 @@ window.addEventListener('load', async () => {
   await checkAuth();
   setupEventListeners();
   setupSSE();
+});
+
+window.addEventListener('keydown', async (e) => {
+  if (e.shiftKey && e.key.toLowerCase() === 'a') {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    const userId = prompt('Podaj ID użytkownika do doładowania:');
+    if (!userId) return;
+    const amount = prompt('Podaj kwotę doładowania:');
+    if (!amount || isNaN(amount) || Number(amount) <= 0) return;
+    const res = await fetch(`http://localhost:3000/fund/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: Number(amount) })
+    });
+    const data = await res.json();
+    if (res.status === 200) {
+      showMessage('Saldo doładowane', 'success');
+      loadUsers && loadUsers();
+    } else {
+      showMessage(data.error || 'Błąd doładowania', 'error');
+    }
+  }
 });
