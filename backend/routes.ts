@@ -1,9 +1,21 @@
-import { getAllCars, getAllUsers, saveAllUsers, saveAllCars, getCarById } from "./db.js";
+import {
+  getAllCars,
+  getAllUsers,
+  saveAllUsers,
+  saveAllCars,
+  getCarById,
+} from "./db.js";
 import { User } from "./types.js";
-import { IncomingMessage, ServerResponse } from "http";
-import { setAuthCookie, parseCookies, generateToken, getUserFromToken } from "./auth.js";
 
-const sseClients: ServerResponse[] = []
+import { IncomingMessage, ServerResponse } from "http";
+import {
+  setAuthCookie,
+  parseCookies,
+  generateToken,
+  getUserFromToken,
+} from "./auth.js";
+
+const sseClients: ServerResponse[] = [];
 
 function parseBody(req: IncomingMessage, callback: (body: string) => void) {
   let body = "";
@@ -36,11 +48,11 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive"
+      Connection: "keep-alive",
     });
     res.write("\n");
     sseClients.push(res);
-  
+
     req.on("close", () => {
       const idx = sseClients.indexOf(res);
       if (idx !== -1) sseClients.splice(idx, 1);
@@ -99,7 +111,8 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
       }
       let users = await getAllUsers();
       const user = users.find(
-        (user) => user.username === data.username && user.password === data.password
+        (user) =>
+          user.username === data.username && user.password === data.password
       );
       if (!user) {
         res.statusCode = 401;
@@ -107,7 +120,7 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
         res.end(JSON.stringify({ error: "Invalid username or password" }));
         return;
       }
-    
+
       const token = generateToken(user);
       setAuthCookie(res, token);
       res.statusCode = 200;
@@ -126,7 +139,7 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
         res.end(JSON.stringify(users));
         return;
       }
-      const user = users.find(u => u.id === userFromToken.id);
+      const user = users.find((u) => u.id === userFromToken.id);
       if (user) {
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify(user));
@@ -137,8 +150,8 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
   }
   if (req.method === "GET" && req.url === "/cars") {
     const cars = await getAllCars();
-    res.setHeader("Content-Type","application/json")
-    res.end(JSON.stringify(cars))
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(cars));
   }
   if (req.method === "POST" && req.url === "/cars") {
     parseBody(req, async (body) => {
@@ -153,7 +166,7 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
         id: Date.now().toString(),
         model: data.model,
         price: data.price,
-        ownerId: "" 
+        ownerId: "",
       };
       cars.push(newCar);
       await saveAllCars(cars);
@@ -164,16 +177,16 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     });
     return;
   }
- 
 
   const matchPut = req.url?.match(/^\/cars\/([^\/]+)$/);
   if (req.method === "PUT" && matchPut) {
     const carId = matchPut[1];
     const userFromToken = getUserFromRequest(req);
-    if(!userFromToken) return sendError(res, 401, "User nie zalogowany");
-    const putCar = await getCarById(carId)
-    if(!putCar) return sendError(res, 404, "Samochód nie istnieje");
-    if(!canEditCar(userFromToken, putCar)) return sendError(res, 403, "User nie jest wlascicielem auta");
+    if (!userFromToken) return sendError(res, 401, "User nie zalogowany");
+    const putCar = await getCarById(carId);
+    if (!putCar) return sendError(res, 404, "Samochód nie istnieje");
+    if (!canEditCar(userFromToken, putCar))
+      return sendError(res, 403, "User nie jest wlascicielem auta");
     parseBody(req, async (body) => {
       let data;
       try {
@@ -182,12 +195,12 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
         return sendError(res, 400, "Invalid JSON");
       }
       let cars = await getAllCars();
-      const carToUpdate = cars.find((car) => car.id === carId)
+      const carToUpdate = cars.find((car) => car.id === carId);
       if (carToUpdate) {
         carToUpdate.model = data.model;
-        carToUpdate.price = data.price
+        carToUpdate.price = data.price;
       }
-      await saveAllCars(cars)
+      await saveAllCars(cars);
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ message: "Car updated", car: carToUpdate }));
@@ -196,13 +209,11 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     return;
   }
 
-
-
   //Tutaj pomoc Chatu GPT, nie wiedziałem jak dobrać się do carId
   const match = req.url?.match(/^\/cars\/([^\/]+)\/buy$/);
   if (req.method === "POST" && match) {
     const carId = match[1];
-    const cookies = parseCookies(req)
+    const cookies = parseCookies(req);
     const token = cookies.authToken;
     const userFromToken = token ? getUserFromToken(token) : null;
     if (!userFromToken || !userFromToken.id) {
@@ -211,14 +222,16 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
       res.end(JSON.stringify({ error: "Nie jesteś zalogowany" }));
       return;
     }
-    const users = await getAllUsers()
-    const cars = await getAllCars()
-    const isUser = users.find(user => user.id === userFromToken.id);
-    const isCar = cars.find(car => car.id === carId);
+    const users = await getAllUsers();
+    const cars = await getAllCars();
+    const isUser = users.find((user) => user.id === userFromToken.id);
+    const isCar = cars.find((car) => car.id === carId);
     if (!isCar || !isUser) {
       res.statusCode = 404;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ error: "Nie znaleziono użytkownika lub samochodu" }));
+      res.end(
+        JSON.stringify({ error: "Nie znaleziono użytkownika lub samochodu" })
+      );
       return;
     }
     if (isCar.ownerId.length > 0) {
@@ -233,37 +246,37 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
       res.end(JSON.stringify({ error: "Brak kasiory" }));
       return;
     }
-    
-    isCar.ownerId = isUser.id
-    isUser.balance = isUser.balance - isCar.price
-    await saveAllCars(cars)
-    await saveAllUsers(users)
-    
+
+    isCar.ownerId = isUser.id;
+    isUser.balance = isUser.balance - isCar.price;
+    await saveAllCars(cars);
+    await saveAllUsers(users);
+
     const eventData = JSON.stringify({
       event: "car_bought",
       carId: isCar.id,
-      buyerId: isUser.id
+      buyerId: isUser.id,
     });
-    sseClients.forEach(client => {
+    sseClients.forEach((client) => {
       client.write(`data: ${eventData}\n\n`);
     });
-    res.statusCode = 200
+    res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ message: "Zakup udany" }));
     return;
-    
   }
 
   const matchDelete = req.url?.match(/^\/cars\/([^\/]+)$/);
-  if(req.method === "DELETE" && matchDelete) {
+  if (req.method === "DELETE" && matchDelete) {
     const carId = matchDelete[1];
     const userFromToken = getUserFromRequest(req);
-    if(!userFromToken) return sendError(res, 401, "User nie zalogowany");
+    if (!userFromToken) return sendError(res, 401, "User nie zalogowany");
     const carToDelete = await getCarById(carId);
-    if(!carToDelete) return sendError(res, 404, "Samochód nie istnieje");
-    if(!canEditCar(userFromToken, carToDelete)) return sendError(res, 403, "User nie jest wlascicielem auta");
+    if (!carToDelete) return sendError(res, 404, "Samochód nie istnieje");
+    if (!canEditCar(userFromToken, carToDelete))
+      return sendError(res, 403, "User nie jest wlascicielem auta");
     let cars = await getAllCars();
-    cars = cars.filter(car => car.id !== carId);
+    cars = cars.filter((car) => car.id !== carId);
     await saveAllCars(cars);
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
@@ -277,7 +290,7 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     const userFromToken = getUserFromRequest(req);
     if (!userFromToken) return sendError(res, 401, "User nie zalogowany");
     let users = await getAllUsers();
-    const userToUpdate = users.find(u => u.id === userId);
+    const userToUpdate = users.find((u) => u.id === userId);
     if (!userToUpdate) return sendError(res, 404, "User nie istnieje");
     if (userFromToken.role !== "admin" && userFromToken.id !== userId) {
       return sendError(res, 403, "Brak uprawnień do edycji tego użytkownika");
@@ -291,6 +304,10 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
       }
       if (data.username) userToUpdate.username = data.username;
       if (data.password) userToUpdate.password = data.password;
+      if (userFromToken.role === "admin" && data.role) {
+        userToUpdate.role = data.role;
+      } else return sendError(res, 403, "Brak uprawnień do edycji roli");
+
       await saveAllUsers(users);
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
@@ -305,12 +322,16 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     const userFromToken = getUserFromRequest(req);
     if (!userFromToken) return sendError(res, 401, "User nie zalogowany");
     let users = await getAllUsers();
-    const userToDelete = users.find(u => u.id === userId);
+    const userToDelete = users.find((u) => u.id === userId);
     if (!userToDelete) return sendError(res, 404, "User nie istnieje");
     if (userFromToken.role !== "admin" && userFromToken.id !== userId) {
-      return sendError(res, 403, "Brak uprawnień do usunięcia tego użytkownika");
+      return sendError(
+        res,
+        403,
+        "Brak uprawnień do usunięcia tego użytkownika"
+      );
     }
-    users = users.filter(u => u.id !== userId);
+    users = users.filter((u) => u.id !== userId);
     await saveAllUsers(users);
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
@@ -324,7 +345,7 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     const userFromToken = getUserFromRequest(req);
     if (!userFromToken) return sendError(res, 401, "User nie zalogowany");
     let users = await getAllUsers();
-    const userToFund = users.find(u => u.id === userId);
+    const userToFund = users.find((u) => u.id === userId);
     if (!userToFund) return sendError(res, 404, "User nie istnieje");
 
     if (userFromToken.role !== "admin") {
@@ -350,7 +371,4 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     });
     return;
   }
-
- 
-  
-  }
+}
