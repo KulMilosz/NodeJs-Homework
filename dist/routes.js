@@ -289,7 +289,7 @@ export async function handleRoute(req, res) {
                 userToUpdate.role = data.role;
             }
             else
-                return sendError(res, 403, "Brak uprawnień do edycji tego użytkownika");
+                return sendError(res, 403, "Brak uprawnień do edycji roli");
             await saveAllUsers(users);
             res.statusCode = 200;
             res.setHeader("Content-Type", "application/json");
