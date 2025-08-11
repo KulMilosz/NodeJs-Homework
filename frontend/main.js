@@ -99,22 +99,28 @@ function showView(viewId) {
  */
 async function loadProfile() {
   try {
-    const res = await fetch('http://localhost:3000/users');
-    if (res.status === 200) {
-      const data = await res.json();
-      let profile;
-      if (Array.isArray(data)) {
-        profile = data.find(u => u.role === 'admin') || null;
-      } else {
-        profile = data;
-      }
-      if (profile) {
-        document.getElementById('profile-info').innerText =
-          `Username: ${profile.username}\nSaldo: ${profile.balance}`;
-      }
+    if (!currentUser) {
+      showMessage('Nie jesteś zalogowany', 'error');
+      return;
+    }
+    
+    // Używamy currentUser zamiast szukania admina
+    const profile = currentUser;
+    
+    if (profile) {
+      document.getElementById('profile-info').innerText =
+        `Username: ${profile.username}\nSaldo: ${profile.balance}`;
+      
+      // Wypełniamy formularz aktualnymi danymi
+      const usernameInput = document.getElementById('newUsername');
+      const passwordInput = document.getElementById('newPassword');
+      if (usernameInput) usernameInput.value = profile.username;
+      if (passwordInput) passwordInput.value = '';
+
     }
   } catch (err) {
     showMessage('Błąd przy pobieraniu profilu', 'error');
+    console.error('Błąd loadProfile:', err);
   }
 }
 
@@ -255,7 +261,7 @@ async function loadUsers() {
  */
 function setupEventListeners() {
   // Routing – zmiana widoku po zmianie fragmentu URL
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', () => route());
   route(); // inicjalizacja
 
   // Formularz logowania
@@ -308,8 +314,20 @@ function setupEventListeners() {
   if (profileForm) {
     profileForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      if (!currentUser) {
+        showMessage('Nie jesteś zalogowany', 'error');
+        return;
+      }
+      
       const newUsername = document.getElementById('newUsername').value;
       const newPassword = document.getElementById('newPassword').value;
+      
+      if (!newUsername || !newPassword) {
+        showMessage('Wypełnij wszystkie pola', 'error');
+        return;
+      }
+      
       const userId = currentUser.id;
       const res = await fetch(`http://localhost:3000/users/${userId}`, {
         method: 'PUT',
@@ -389,16 +407,25 @@ function setupEventListeners() {
  * Prosty router – na podstawie fragmentu adresu URL (hash) wyświetla odpowiedni widok.
  * Specjalnie obsługujemy #logout, aby "wylogować" użytkownika (symulacja).
  */
-function route() {
+async function route() {
   const hash = window.location.hash || '#home';
   const viewId = hash.substring(1) + '-view';
 
   if (hash === '#logout') {
-    // "Wylogowanie" – resetujemy currentUser; w prawdziwej aplikacji warto by było mieć endpoint logout
-    currentUser = null;
-    renderNav();
-    showMessage('Wylogowano');
-    window.location.hash = '#home';
+    // Wylogowanie - wysyłamy żądanie do backendu i resetujemy frontend
+    try {
+      const res = await fetch('http://localhost:3000/logout', { method: 'POST' });
+      if (res.status === 200) {
+        currentUser = null;
+        renderNav();
+        showMessage('Wylogowano pomyślnie');
+        window.location.hash = '#home';
+      } else {
+        showMessage('Błąd wylogowania', 'error');
+      }
+    } catch (error) {
+      showMessage('Błąd wylogowania', 'error');
+    }
     return;
   }
 

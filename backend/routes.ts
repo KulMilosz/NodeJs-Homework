@@ -10,6 +10,7 @@ import { User } from "./types.js";
 import { IncomingMessage, ServerResponse } from "http";
 import {
   setAuthCookie,
+  removeAuthCookie,
   parseCookies,
   generateToken,
   getUserFromToken,
@@ -130,6 +131,13 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     });
     return;
   }
+  if (req.method === "POST" && req.url === "/logout") {
+    removeAuthCookie(res);
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ message: "Logout successful" }));
+    return;
+  }
   if (req.method === "GET" && req.url === "/users") {
     const userFromToken = getUserFromRequest(req);
     if (userFromToken && userFromToken.id) {
@@ -209,7 +217,6 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
     return;
   }
 
-  //Tutaj pomoc Chatu GPT, nie wiedziałem jak dobrać się do carId
   const match = req.url?.match(/^\/cars\/([^\/]+)\/buy$/);
   if (req.method === "POST" && match) {
     const carId = match[1];
@@ -304,9 +311,13 @@ export async function handleRoute(req: IncomingMessage, res: ServerResponse) {
       }
       if (data.username) userToUpdate.username = data.username;
       if (data.password) userToUpdate.password = data.password;
-      if (userFromToken.role === "admin" && data.role) {
-        userToUpdate.role = data.role;
-      } else return sendError(res, 403, "Brak uprawnień do edycji roli");
+      if (data.role) {
+        if (userFromToken.role === "admin") {
+          userToUpdate.role = data.role;
+        } else {
+          return sendError(res, 403, "Brak uprawnień do edycji roli");
+        }
+      }
 
       await saveAllUsers(users);
       res.statusCode = 200;

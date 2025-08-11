@@ -4,14 +4,15 @@ import { User } from "./types.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || "domyslny_klucz"; 
+const JWT_SECRET = process.env.JWT_SECRET || "domyslny_klucz";
 
 export function generateToken(user: User): string {
   return jwt.sign(
     {
       id: user.id,
       username: user.username,
-      role: user.role
+      role: user.role,
+      balance: user.balance
     },
     JWT_SECRET,
     { expiresIn: "1h" }
@@ -27,7 +28,7 @@ export function getUserFromToken(token: string): User | null {
         username: payload.username,
         role: payload.role,
         password: "",
-        balance: 0
+        balance: payload.balance || 0
       };
     }
     return null;
@@ -38,6 +39,10 @@ export function getUserFromToken(token: string): User | null {
 
 export function setAuthCookie(res: ServerResponse, token: string) {
   res.setHeader('Set-Cookie', `authToken=${token}; Path=/; HttpOnly`);
+}
+
+export function removeAuthCookie(res: ServerResponse) {
+  res.setHeader('Set-Cookie', 'authToken=; Path=/; HttpOnly; Max-Age=0');
 }
 
 export function parseCookies(req: IncomingMessage): Record<string, string> {

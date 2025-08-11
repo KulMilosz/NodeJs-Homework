@@ -8,9 +8,9 @@
   },
   {
     "id": "1752518369459",
-    "username": "test1",
-    "password": "nowehaslo",
+    "username": "user1",
+    "password": "user1",
     "role": "user",
-    "balance": 5002875
+    "balance": 5001875
   }
 ]
